@@ -48,9 +48,12 @@ describe('createAppointment', () => {
     await expect(
       createAppointment({
         customerId: 'customer-1',
+        customerEmail: 'customer@example.com',
         businessId: 'business-1',
         date: '2026-04-02',
-        time: '10:00'
+        time: '10:00',
+        contactEmail: 'customer@example.com',
+        contactPhone: '5551230000'
       })
     ).rejects.toMatchObject({
       status: 409,
@@ -86,6 +89,8 @@ describe('createAppointment', () => {
       businessId: 'business-1',
       date: '2026-04-02',
       time: '11:00',
+      contactEmail: 'jane@example.com',
+      contactPhone: '5551230000',
       guestName: 'Jane Guest',
       guestEmail: 'jane@example.com'
     });

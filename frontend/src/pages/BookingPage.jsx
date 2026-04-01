@@ -37,7 +37,9 @@ function BookingPage() {
   const [form, setForm] = useState({
     businessId: '',
     date: '',
-    time: ''
+    time: '',
+    contactEmail: '',
+    contactPhone: ''
   });
 
   const availableSlots = useMemo(
@@ -101,7 +103,7 @@ function BookingPage() {
     const { name, value } = event.target;
     setForm((previous) => {
       const next = { ...previous, [name]: value };
-      if (name !== 'time') {
+      if (name === 'businessId' || name === 'date') {
         next.time = '';
       }
       return next;
@@ -120,7 +122,13 @@ function BookingPage() {
       const appointment = await createAppointment(form);
       setSuccess('Appointment created successfully.');
       setAppointments((previous) => [appointment, ...previous]);
-      setForm({ businessId: '', date: '', time: '' });
+      setForm({
+        businessId: '',
+        date: '',
+        time: '',
+        contactEmail: '',
+        contactPhone: ''
+      });
       setBookedSlots([]);
       await loadPageData();
     } catch (submitError) {
@@ -250,6 +258,30 @@ function BookingPage() {
                   </option>
                 ))}
               </select>
+            </label>
+
+            <label>
+              Contact Email
+              <input
+                type="email"
+                name="contactEmail"
+                value={form.contactEmail}
+                onChange={handleFormChange}
+                placeholder="name@example.com"
+                required
+              />
+            </label>
+
+            <label>
+              Phone Number
+              <input
+                type="tel"
+                name="contactPhone"
+                value={form.contactPhone}
+                onChange={handleFormChange}
+                placeholder="(555) 123-4567"
+                required
+              />
             </label>
 
             <button type="submit" disabled={submitting}>

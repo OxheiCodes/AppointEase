@@ -3,6 +3,7 @@
 ## Overview
 AppointEase Now is a booking SaaS for small businesses to manage appointments and reduce scheduling conflicts.
 
+
 Stage 1 delivers a clean, responsive UI shell and a scalable full-stack project setup using React (Vite) and Express.
 
 Stage 2 adds Supabase authentication, role management, and database schema foundations.
@@ -68,7 +69,34 @@ PORT=5000
 FRONTEND_URL=http://localhost:5173
 SUPABASE_URL=https://your-project-ref.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+
+# Option A (recommended here): Mailtrap API token mode
+MAILTRAP_API_TOKEN=your-mailtrap-api-token
+MAILTRAP_FROM_EMAIL=your-verified-sender@yourdomain.com
+MAILTRAP_FROM_NAME=AppointEase
+
+# Option B: SMTP mode
+EMAIL_HOST=your-smtp-host
+EMAIL_PORT=587
+EMAIL_SECURE=false
+EMAIL_USER=your-smtp-username
+EMAIL_PASS=your-smtp-password
+EMAIL_FROM=AppointEase <no-reply@yourdomain.com>
+
+TEST_EMAIL_TO=your-inbox-for-testing
 ```
+
+Email notifications support Mailtrap API token mode or SMTP mode. If neither is configured, bookings still work but notification sending is skipped.
+
+Quick SMTP smoke test (backend only):
+
+```bash
+cd backend
+npm run test:email
+```
+
+This sends one confirmation-style email to `TEST_EMAIL_TO` and helps validate SMTP setup before full booking flow testing.
+This sends one confirmation-style email to TEST_EMAIL_TO and helps validate Mailtrap or SMTP setup before full booking flow testing.
 
 ### 3) Configure frontend environment
 In the frontend folder, create a .env file using frontend/.env.example:
@@ -89,6 +117,8 @@ This creates:
 - `appointments` table with fields required for Stage 2+
 - Trigger to auto-create a `users` profile row from signup metadata
 - Basic Row Level Security policies
+
+For contact capture support (contact email + phone on appointment creation), re-run [supabase/schema.sql](supabase/schema.sql) to add `contact_email` and `contact_phone` columns.
 
 For Stage 3, also make sure your database has the unique index that blocks duplicate active slots.
 If you already ran the SQL before this Stage 3 update, re-run [supabase/schema.sql](supabase/schema.sql) so the index is created.
@@ -147,7 +177,7 @@ Default local URLs:
 ### Manual Stage 3 checklist
 - Create one `business_owner` account and one `customer` account.
 - Login as customer and open `/bookings`.
-- Select a business owner, date, and available time slot.
+- Select a business owner, date, available time slot, contact email, and phone number.
 - Click `Book Appointment` and verify the booking appears in the list.
 - In a second customer session, try booking the same business + date + time: it must fail with a conflict message.
 - Login as business owner and open `/bookings`: owner should see all bookings for their business.
@@ -171,7 +201,7 @@ Default local URLs:
 - Open `/public-booking` without logging in.
 - Step 1: Select a business and continue.
 - Step 2: Choose date and available time slot.
-- Step 3: Enter guest name + email and confirm booking.
+- Step 3: Enter guest name + email + phone number and confirm booking.
 - Verify confirmation screen appears after submit.
 - Repeat booking with same business/date/time and verify conflict message appears.
 - Confirm mobile usability of all 3 steps and buttons.

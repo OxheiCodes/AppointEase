@@ -1,5 +1,4 @@
--- AppointEase Now Stage 2 schema (Supabase free tier)
--- Run this in Supabase SQL Editor.
+-- AppointEase Now Stage 2 schema 
 
 create extension if not exists "pgcrypto";
 
@@ -16,6 +15,8 @@ create table if not exists public.appointments (
   business_id uuid not null references public.users(id) on delete cascade,
   guest_name text,
   guest_email text,
+  contact_email text,
+  contact_phone text,
   date date not null,
   time time not null,
   status text not null check (status in ('pending', 'confirmed', 'cancelled')) default 'pending',
@@ -25,6 +26,8 @@ create table if not exists public.appointments (
 alter table public.appointments alter column user_id drop not null;
 alter table public.appointments add column if not exists guest_name text;
 alter table public.appointments add column if not exists guest_email text;
+alter table public.appointments add column if not exists contact_email text;
+alter table public.appointments add column if not exists contact_phone text;
 
 alter table public.appointments
   drop constraint if exists appointments_booking_identity_check;
@@ -96,6 +99,7 @@ create policy "Customers create own appointments"
       and user_id is null
       and guest_name is not null
       and guest_email is not null
+      and contact_phone is not null
     )
   );
 

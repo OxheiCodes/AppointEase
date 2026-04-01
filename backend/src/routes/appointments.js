@@ -47,13 +47,16 @@ router.post('/', async (req, res) => {
         .json({ message: 'Only customers can create appointments.' });
     }
 
-    const { businessId, date, time } = req.body;
+    const { businessId, date, time, contactEmail, contactPhone } = req.body;
 
     const appointment = await createAppointment({
       customerId: req.authUser.id,
+      customerEmail: req.authUser.email,
       businessId,
       date,
-      time
+      time,
+      contactEmail,
+      contactPhone
     });
 
     return res.status(201).json({ appointment });

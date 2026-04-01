@@ -30,7 +30,8 @@ function PublicBookingPage() {
     date: '',
     time: '',
     guestName: '',
-    guestEmail: ''
+    guestEmail: '',
+    guestPhone: ''
   });
 
   useEffect(() => {
@@ -247,6 +248,16 @@ function PublicBookingPage() {
               />
             </label>
 
+            <label>
+              Your Phone Number
+              <input
+                type="tel"
+                value={form.guestPhone}
+                onChange={(event) => updateField('guestPhone', event.target.value)}
+                required
+              />
+            </label>
+
             <div className="step-actions">
               <button type="button" onClick={() => setStep(2)}>
                 Back
@@ -276,7 +287,8 @@ function PublicBookingPage() {
                 date: '',
                 time: '',
                 guestName: '',
-                guestEmail: ''
+                guestEmail: '',
+                guestPhone: ''
               });
             }}
           >

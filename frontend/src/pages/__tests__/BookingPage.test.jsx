@@ -31,6 +31,7 @@ import { getCurrentSession, getUserRole } from '../../services/authService.js';
 import {
   createAppointment,
   getAppointments,
+  getBookedSlots,
   getBusinessOwners,
   rescheduleAppointment
 } from '../../services/bookingApi.js';
@@ -45,6 +46,7 @@ describe('BookingPage', () => {
     });
     getUserRole.mockResolvedValue('customer');
     getAppointments.mockResolvedValue({ appointments: [], role: 'customer' });
+    getBookedSlots.mockResolvedValue([]);
     getBusinessOwners.mockResolvedValue([
       { id: 'business-1', full_name: 'Salon Prime' }
     ]);
@@ -79,6 +81,12 @@ describe('BookingPage', () => {
     });
     fireEvent.change(screen.getByLabelText('Available Slot'), {
       target: { value: '10:00' }
+    });
+    fireEvent.change(screen.getByLabelText('Contact Email'), {
+      target: { value: 'customer@example.com' }
+    });
+    fireEvent.change(screen.getByLabelText('Phone Number'), {
+      target: { value: '5551230000' }
     });
     fireEvent.click(screen.getByText('Book Appointment'));
 

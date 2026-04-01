@@ -1,5 +1,6 @@
 import { getServerSupabaseClient } from '../config/supabase.js';
 import { getUserProfileById } from './authService.js';
+import { sendBookingNotificationEmail } from './emailService.js';
 
 function appError(message, status = 400) {
   const error = new Error(message);
@@ -7,11 +8,28 @@ function appError(message, status = 400) {
   return error;
 }
 
+async function getUserEmailById(supabase, userId) {
+  if (!supabase?.auth?.admin?.getUserById) {
+    return null;
+  }
+
+  const { data, error } = await supabase.auth.admin.getUserById(userId);
+
+  if (error) {
+    return null;
+  }
+
+  return data?.user?.email || null;
+}
+
 export async function createAppointment({
   customerId,
+  customerEmail,
   businessId,
   date,
   time,
+  contactEmail,
+  contactPhone,
   guestName,
   guestEmail
 }) {
@@ -22,15 +40,26 @@ export async function createAppointment({
   }
 
   const isCustomerBooking = Boolean(customerId);
+  const resolvedContactEmail = contactEmail || customerEmail || guestEmail || null;
 
-  if (!isCustomerBooking && (!guestName || !guestEmail)) {
-    throw appError('guestName and guestEmail are required for public bookings.', 400);
+  if (!resolvedContactEmail) {
+    throw appError('A contact email is required.', 400);
+  }
+
+  if (!contactPhone) {
+    throw appError('A contact phone number is required.', 400);
+  }
+
+  if (!isCustomerBooking && !guestName) {
+    throw appError('guestName is required for public bookings.', 400);
   }
 
   const businessProfile = await getUserProfileById(businessId);
   if (!businessProfile || businessProfile.role !== 'business_owner') {
     throw appError('Selected business is invalid.', 400);
   }
+
+  const customerProfile = isCustomerBooking ? await getUserProfileById(customerId) : null;
 
   const { data: conflicting, error: conflictError } = await supabase
     .from('appointments')
@@ -58,7 +87,9 @@ export async function createAppointment({
       time,
       status: 'pending',
       guest_name: isCustomerBooking ? null : guestName,
-      guest_email: isCustomerBooking ? null : guestEmail
+      guest_email: isCustomerBooking ? null : resolvedContactEmail,
+      contact_email: resolvedContactEmail,
+      contact_phone: contactPhone
     })
     .select('*')
     .single();
@@ -70,6 +101,21 @@ export async function createAppointment({
     throw appError(error.message, 500);
   }
 
+  const recipientEmail = resolvedContactEmail;
+
+  try {
+    await sendBookingNotificationEmail({
+      recipientEmail,
+      recipientName: isCustomerBooking ? customerProfile?.full_name : guestName,
+      action: 'confirmed',
+      businessName: businessProfile.full_name,
+      date,
+      time
+    });
+  } catch (notificationError) {
+    console.warn('Booking confirmation email failed:', notificationError.message);
+  }
+
   return data;
 }
 
@@ -78,7 +124,7 @@ export async function getAppointmentsForUser({ userId, role }) {
 
   const baseQuery = supabase
     .from('appointments')
-    .select('id, user_id, business_id, guest_name, guest_email, date, time, status, created_at')
+    .select('id, user_id, business_id, guest_name, guest_email, contact_email, contact_phone, date, time, status, created_at')
     .order('date', { ascending: true })
     .order('time', { ascending: true });
 
@@ -120,7 +166,7 @@ export async function cancelAppointment({ appointmentId, userId }) {
 
   const { data: existing, error: existingError } = await supabase
     .from('appointments')
-    .select('id, user_id, business_id, status')
+    .select('id, user_id, business_id, guest_name, guest_email, contact_email, contact_phone, date, time, status')
     .eq('id', appointmentId)
     .single();
 
@@ -139,11 +185,34 @@ export async function cancelAppointment({ appointmentId, userId }) {
     .from('appointments')
     .update({ status: 'cancelled' })
     .eq('id', appointmentId)
-    .select('id, user_id, business_id, guest_name, guest_email, date, time, status, created_at')
+    .select('id, user_id, business_id, guest_name, guest_email, contact_email, contact_phone, date, time, status, created_at')
     .single();
 
   if (error) {
     throw appError(error.message, 500);
+  }
+
+  const businessProfile = await getUserProfileById(existing.business_id);
+  const bookingRecipientProfile = existing.user_id
+    ? await getUserProfileById(existing.user_id)
+    : null;
+
+  try {
+    const fallbackEmail = existing.user_id
+      ? await getUserEmailById(supabase, existing.user_id)
+      : existing.guest_email;
+    const recipientEmail = existing.contact_email || fallbackEmail;
+
+    await sendBookingNotificationEmail({
+      recipientEmail,
+      recipientName: bookingRecipientProfile?.full_name || existing.guest_name,
+      action: 'cancelled',
+      businessName: businessProfile.full_name,
+      date: existing.date,
+      time: existing.time.slice(0, 5)
+    });
+  } catch (notificationError) {
+    console.warn('Cancellation email failed:', notificationError.message);
   }
 
   return data;
@@ -158,7 +227,7 @@ export async function rescheduleAppointment({ appointmentId, userId, date, time 
 
   const { data: existing, error: existingError } = await supabase
     .from('appointments')
-    .select('id, user_id, business_id, status')
+    .select('id, user_id, business_id, guest_name, guest_email, contact_email, contact_phone, date, time, status')
     .eq('id', appointmentId)
     .single();
 
@@ -199,7 +268,7 @@ export async function rescheduleAppointment({ appointmentId, userId, date, time 
       status: 'confirmed'
     })
     .eq('id', appointmentId)
-    .select('id, user_id, business_id, guest_name, guest_email, date, time, status, created_at')
+    .select('id, user_id, business_id, guest_name, guest_email, contact_email, contact_phone, date, time, status, created_at')
     .single();
 
   if (error) {
@@ -207,6 +276,29 @@ export async function rescheduleAppointment({ appointmentId, userId, date, time 
       throw appError('This slot is already booked. Please choose another time.', 409);
     }
     throw appError(error.message, 500);
+  }
+
+  const businessProfile = await getUserProfileById(existing.business_id);
+  const bookingRecipientProfile = existing.user_id
+    ? await getUserProfileById(existing.user_id)
+    : null;
+
+  try {
+    const fallbackEmail = existing.user_id
+      ? await getUserEmailById(supabase, existing.user_id)
+      : existing.guest_email;
+    const recipientEmail = existing.contact_email || fallbackEmail;
+
+    await sendBookingNotificationEmail({
+      recipientEmail,
+      recipientName: bookingRecipientProfile?.full_name || existing.guest_name,
+      action: 'rescheduled',
+      businessName: businessProfile.full_name,
+      date,
+      time
+    });
+  } catch (notificationError) {
+    console.warn('Reschedule email failed:', notificationError.message);
   }
 
   return data;

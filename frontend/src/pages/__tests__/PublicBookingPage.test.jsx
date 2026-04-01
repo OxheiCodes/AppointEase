@@ -63,6 +63,9 @@ describe('PublicBookingPage', () => {
     fireEvent.change(screen.getByLabelText('Your Email'), {
       target: { value: 'guest@example.com' }
     });
+    fireEvent.change(screen.getByLabelText('Your Phone Number'), {
+      target: { value: '5551230000' }
+    });
 
     fireEvent.click(screen.getByText('Confirm Booking'));
 

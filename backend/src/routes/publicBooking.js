@@ -43,12 +43,14 @@ router.get('/availability', async (req, res) => {
 
 router.post('/appointments', async (req, res) => {
   try {
-    const { businessId, date, time, guestName, guestEmail } = req.body;
+    const { businessId, date, time, guestName, guestEmail, guestPhone } = req.body;
 
     const appointment = await createAppointment({
       businessId,
       date,
       time,
+      contactEmail: guestEmail,
+      contactPhone: guestPhone,
       guestName,
       guestEmail
     });
